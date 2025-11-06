@@ -1,0 +1,224 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: vag_force_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - vag-net
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    environment:
+      # Используем локальную (host) БД по умолчанию; при запуске контейнера на Windows
+      # используйте host.docker.internal чтобы контейнер видел локальный хост.
+      # В compose-сценарии подключаемся к контейнерному Postgres (service `db`)
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/vag_force_db
+      - PGHOST=db
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - JWT_SECRET=supersecretkey
+      - JWT_ALGORITHM=HS256
+    depends_on:
+      - db
+    volumes:
+      - ./services/auth-service:/app
+      - ./shared:/app/shared
+    ports:
+      - "8001:8001"
+    networks:
+      - vag-net
+
+  # placeholders for other services
+  products-service:
+    build:
+      context: .
+      dockerfile: services/products-service/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/vag_force_db
+      - PGHOST=db
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+    volumes:
+      # bind-mount source for faster dev iteration
+      - ./services/products-service:/app
+      - ./shared:/app/shared
+    ports:
+      - "8002:8002"
+    networks:
+      - vag-net
+
+  cart-service:
+    build:
+      context: .
+      dockerfile: services/cart-service/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/vag_force_db
+      - PGHOST=db
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+    volumes:
+      - ./services/cart-service:/app
+      - ./shared:/app/shared
+    ports:
+      - "8003:8003"
+    networks:
+      - vag-net
+
+  orders-service:
+    build:
+      context: .
+      dockerfile: services/orders-service/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/vag_force_db
+      - PGHOST=db
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+    volumes:
+      - ./services/orders-service:/app
+      - ./shared:/app/shared
+    ports:
+      - "8004:8004"
+    networks:
+      - vag-net
+
+  payments-service:
+    build:
+      context: .
+      dockerfile: services/payments-service/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/vag_force_db
+      - PGHOST=db
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+    volumes:
+      - ./services/payments-service:/app
+      - ./shared:/app/shared
+    ports:
+      - "8005:8005"
+    networks:
+      - vag-net
+
+  dashboard-service:
+    build:
+      context: .
+      dockerfile: services/dashboard-service/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/vag_force_db
+      - PGHOST=db
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+    volumes:
+      - ./services/dashboard-service:/app
+      - ./shared:/app/shared
+    ports:
+      - "8006:8006"
+    networks:
+      - vag-net
+
+  frontend-service:
+    # Frontend (monolith or static) placeholder. You can swap this to build the monolith
+    build:
+      context: .
+      dockerfile: services/frontend-service/Dockerfile
+    volumes:
+      # mount the entire repo so frontend can serve templates/static from monolith
+      - ./:/app
+      - ./shared:/app/shared
+    environment:
+      - ORDERS_URL=http://orders-service:8004
+    ports:
+      - "8000:8000"
+    networks:
+      - vag-net
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - vag-net
+
+  notifications-service:
+    build:
+      context: .
+      dockerfile: services/notifications-service/Dockerfile
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./services/notifications-service:/app
+      - ./shared:/app/shared
+    ports:
+      - "8007:8007"
+    networks:
+      - vag-net
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: services/inventory-service/Dockerfile
+    volumes:
+      - ./services/inventory-service:/app
+      - ./shared:/app/shared
+    ports:
+      - "8008:8008"
+    networks:
+      - vag-net
+
+  db-seed:
+    image: python:3.11-slim
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/vag_force_db"
+      DEMO_PRODUCTS: "10"
+      # INVENTORY_URL points to inventory service inside the compose network
+      INVENTORY_URL: "http://inventory-service:8008/api/inventory/reset"
+    volumes:
+      - ./:/workdir
+      - ./shared:/workdir/shared
+    working_dir: /workdir
+    command: ["/bin/sh", "-c", "pip install -r requirements.txt && python scripts/db_seed.py"]
+    restart: 'no'
+    networks:
+      - vag-net
+
+  search-service:
+    build:
+      context: .
+      dockerfile: services/search-service/Dockerfile
+    volumes:
+      - ./services/search-service:/app
+      - ./shared:/app/shared
+    ports:
+      - "8009:8009"
+    networks:
+      - vag-net
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: services/analytics-service/Dockerfile
+    volumes:
+      - ./services/analytics-service:/app
+      - ./shared:/app/shared
+    ports:
+      - "8010:8010"
+    networks:
+      - vag-net
+
+volumes:
+  pgdata:
+
+networks:
+  vag-net:
+    driver: bridge

@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+jinja2
+sqlalchemy>=1.4
+asyncpg
+email-validator
+passlib[argon2,bcrypt]
+argon2-cffi
+python-jose
+
+# test / dev helpers
+pytest
+httpx
+psycopg2-binary

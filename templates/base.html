@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{% block title %}VAG FORCE{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/site.css">
+  {% block head %}{% endblock %}
+  <meta name="theme-color" content="#ffffff">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">VAG FORCE</a>
+      <nav class="nav">
+        <a class="nav-link" href="/">О нас</a>
+        <a class="nav-link" href="/shop">Магазин</a>
+        <a class="nav-link" href="/profile">Личный кабинет</a>
+        <a class="nav-link" href="/cart">Корзина <span id="cartCount" class="cart-count">0</span></a>
+  <a id="authLink" class="nav-link" href="/login">Войти</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="/static/js/ui.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

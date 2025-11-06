@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Личный кабинет — VAG FORCE{% endblock %}
+
+{% block content %}
+  <section class="card profile-card">
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+      <div style="width:120px;flex:0 0 120px">
+        <div style="width:120px;height:120px;border-radius:14px;background:linear-gradient(135deg,#eef2ff,#f8fafc);display:flex;align-items:center;justify-content:center;font-weight:700;color:#2563eb;font-size:34px">
+          {% if user and user.full_name %}{{ user.full_name[:1]|upper }}{% else %}VF{% endif %}
+        </div>
+      </div>
+      <div style="flex:1;min-width:220px">
+        <h2 id="profileName" style="margin:0">{% if user and user.full_name %}{{ user.full_name }}{% else %}Гость{% endif %}</h2>
+        <p id="profileEmail" class="muted" style="margin:6px 0 12px">{% if user and user.email %}{{ user.email }}{% else %}Вы не вошли в систему{% endif %}</p>
+
+        <div id="profileActions">
+        {% if user %}
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="logoutBtn" class="btn">Выйти</button>
+        </div>
+        {% else %}
+        <a class="btn primary" href="/login">Войти</a>
+        {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <hr style="margin:18px 0">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+      <div class="card" style="padding:12px">
+        <h4 style="margin:0 0 8px">Последние заказы</h4>
+        <div id="ordersList" class="muted">
+          {% if orders is not none %}
+            {% if orders|length == 0 %}
+              <div class="muted">История заказов пуста.</div>
+            {% else %}
+              <div style="display:grid;gap:8px">
+                {% for o in orders %}
+                  <div class="card" style="padding:8px;display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                      <strong>Заказ #{{ o.id }}</strong>
+                      <div class="muted" style="font-size:0.9em">{{ o.created_at }} · {{ o.status }}</div>
+                    </div>
+                    <div>{{ '%.2f'|format(o.amount|float) }} {{ o.currency or 'USD' }}</div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% else %}
+            Загрузка...
+          {% endif %}
+        </div>
+      </div>
+      <div class="card" style="padding:12px">
+        <h4 style="margin:0 0 8px">Видео-руководство</h4>
+        <div style="background:#000;border-radius:8px;overflow:hidden">
+          <video controls style="width:100%;height:160px;display:block;background:#000">
+            <source src="/static/img/demo-video.mp4" type="video/mp4">
+            Ваш браузер не поддерживает видео.
+          </video>
+        </div>
+      </div>
+    </div>
+  </section>
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      // helper to enable logout behaviour
+      function wireLogout(btn){
+        if(!btn) return
+        btn.addEventListener('click', function(){
+          try{ localStorage.removeItem('vf_token') }catch(e){}
+          document.cookie = 'vf_token=; Max-Age=0; path=/'
+          if(window.vfUI && typeof window.vfUI.updateAuthUI === 'function') window.vfUI.updateAuthUI()
+          if(window.vfUI && typeof window.vfUI.toast === 'function') window.vfUI.toast('Вы вышли')
+          setTimeout(()=> location.href = '/', 300)
+        })
+      }
+
+      // If server-side provided user, logout button already present
+      wireLogout(document.getElementById('logoutBtn'))
+
+      // Client-side hydration: if token exists in localStorage, fetch /api/auth/me and update UI
+      const ordersListEl = document.getElementById('ordersList')
+
+      // helper to render orders
+      function renderOrders(items){
+        if(!ordersListEl) return
+        if(!items || items.length===0){ ordersListEl.innerHTML = '<div class="muted">История заказов пуста.</div>'; return }
+        const html = ['<div style="display:grid;gap:8px">']
+        items.forEach(o=>{
+          html.push(`<div class="card" style="padding:8px;display:flex;justify-content:space-between;align-items:center"><div><strong>Заказ #${o.id}</strong><div class="muted" style="font-size:0.9em">${new Date(o.created_at).toLocaleString()} · ${o.status}</div></div><div>${(Number(o.amount)||0).toFixed(2)} ${o.currency||'USD'}</div></div>`)
+        })
+        html.push('</div>')
+        ordersListEl.innerHTML = html.join('')
+      }
+
+      const token = localStorage.getItem('vf_token')
+      // If server provided user id, use it immediately to fetch orders
+      const serverUserId = {{ user.id if user else 'null' }}
+      // Show a loading hint while we fetch
+      if (ordersListEl) ordersListEl.innerHTML = '<div class="muted">Загрузка...</div>'
+
+      if (serverUserId) {
+        // fetch orders for server user (server-side fetch may already have populated them,
+        // but we still attempt a fresh client-side fetch to keep UI responsive)
+        const host = window.location.hostname
+        const ordersUrl = (host && host !== 'localhost') ? `/api/orders/user/${serverUserId}` : `http://localhost:8004/api/orders/user/${serverUserId}`
+        // helper: fetch with timeout
+        const fetchWithTimeout = (url, opts = {}, timeout = 4000) => {
+          return Promise.race([
+            fetch(url, opts),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), timeout))
+          ])
+        }
+
+        fetchWithTimeout(ordersUrl, {}, 4000)
+          .then(r => { if(!r.ok) throw r; return r.json() })
+          .then(renderOrders)
+          .catch(()=>{
+            if(!ordersListEl) return
+            ordersListEl.innerHTML = '<div class="muted">Не удалось загрузить заказы.</div><div style="margin-top:8px"><button id="retryOrders" class="btn">Повторить</button></div>'
+            const retry = document.getElementById('retryOrders')
+            if(retry) retry.addEventListener('click', ()=> location.reload())
+          })
+      }
+
+      if(!token) return
+      fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => r.ok ? r.json() : Promise.reject(r))
+        .then(user => {
+          // update name/email
+          const nameEl = document.getElementById('profileName')
+          const emailEl = document.getElementById('profileEmail')
+          if(nameEl) nameEl.textContent = user.full_name || user.email || 'Пользователь'
+          if(emailEl) emailEl.textContent = user.email || ''
+
+          // replace actions area with panel + logout
+          const actions = document.getElementById('profileActions')
+          if(actions){
+            actions.innerHTML = ''
+            const panel = document.createElement('a')
+            panel.className = 'btn primary'
+            panel.href = '/dashboard'
+            panel.textContent = 'Панель'
+            const logout = document.createElement('button')
+            logout.id = 'logoutBtn'
+            logout.className = 'btn'
+            logout.textContent = 'Выйти'
+            actions.appendChild(panel)
+            actions.appendChild(logout)
+            wireLogout(logout)
+          }
+          // fetch orders for this user (client-side)
+          try{
+            const host = window.location.hostname
+            const ordersUrl = (host && host !== 'localhost') ? `/api/orders/user/${user.id}` : `http://localhost:8004/api/orders/user/${user.id}`
+            fetch(ordersUrl).then(r => r.ok ? r.json() : Promise.reject(r)).then(renderOrders).catch(()=>{ if(ordersListEl) ordersListEl.innerHTML = '<div class="muted">Не удалось загрузить заказы.</div>' })
+          }catch(e){ if(ordersListEl) ordersListEl.innerHTML = '<div class="muted">Не удалось загрузить заказы.</div>' }
+        })
+        .catch(async err => {
+          try{ const e = await err.json(); console.warn('profile fetch error', e) }catch(e){ console.warn(err) }
+        })
+    })
+  </script>
+{% endblock %}

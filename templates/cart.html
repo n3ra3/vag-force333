@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Корзина — VAG FORCE{% endblock %}
+
+{% block content %}
+  <section class="card cart-card">
+    <h2>Ваша корзина</h2>
+    <p class="muted">Просмотрите добавленные товары, измените количество и нажмите «Checkout».</p>
+
+    <div id="cartContainer">
+      <p id="emptyHint" class="muted">Корзина пуста. Перейдите в <a href="/shop">магазин</a> чтобы добавить товары.</p>
+      <div id="items" class="cart-items"></div>
+      <div id="summary" class="cart-summary"></div>
+      <div class="cart-actions">
+        <button id="checkoutBtn" class="btn primary">Оформить заказ</button>
+      </div>
+    </div>
+
+    <h3>Результат</h3>
+    <pre id="result">—</pre>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/js/cart.js"></script>
+{% endblock %}

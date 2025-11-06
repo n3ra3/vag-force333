@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Оформление заказа — VAG FORCE{% endblock %}
+
+{% block content %}
+  <section class="card" style="max-width:820px;margin:18px auto">
+    <h2>Оформление заказа</h2>
+    <p class="muted">Проверьте список товаров, укажите адрес доставки и данные карты. Оплата будет смоделирована.</p>
+
+    <div id="itemsList" style="margin-top:12px"></div>
+
+    <form id="checkoutForm" style="margin-top:14px;display:grid;grid-template-columns:1fr;gap:10px">
+      <div>
+        <label>Адрес доставки</label>
+        <input id="address" type="text" placeholder="Улица, дом, квартира" required style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef8" />
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1">
+          <label>Номер карты</label>
+          <input id="card" type="text" placeholder="4242 4242 4242 4242" required style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef8" />
+        </div>
+        <div style="width:120px">
+          <label>CVV</label>
+          <input id="cvv" type="text" placeholder="123" required style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef8" />
+        </div>
+      </div>
+      <div>
+        <label>Комментарий (опционально)</label>
+        <textarea id="comment" rows="3" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef8"></textarea>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div id="summary" class="muted">Всего: —</div>
+        <div>
+          <button id="payBtn" class="btn primary">Оплатить и оформить</button>
+          <a class="btn" href="/cart" style="margin-left:8px">Вернуться в корзину</a>
+        </div>
+      </div>
+
+      <pre id="result" style="white-space:pre-wrap;background:#fafafa;padding:10px;border-radius:8px;display:none;margin-top:8px"></pre>
+    </form>
+  </section>
+
+  <script>
+    (function(){
+      const data = sessionStorage.getItem('vf_checkout')
+      const itemsList = document.getElementById('itemsList')
+      const summary = document.getElementById('summary')
+      const result = document.getElementById('result')
+      const payBtn = document.getElementById('payBtn')
+
+      if(!data){
+        itemsList.innerHTML = '<div class="muted">Данные корзины не найдены. Вернитесь в магазин.</div>'
+        payBtn.disabled = true
+        return
+      }
+
+      const checkout = JSON.parse(data)
+      const items = checkout.items || []
+      const amount = checkout.amount || 0
+      summary.textContent = 'Всего: ' + amount.toFixed(2) + ' USD'
+
+      itemsList.innerHTML = '<div style="display:grid;gap:8px">' + items.map(it=>`<div class="card" style="padding:8px;display:flex;justify-content:space-between"><div><strong>${it.name||'Товар'}</strong><div class="muted" style="font-size:0.9em">id:${it.product_id} × ${it.quantity}</div></div><div>${((parseFloat(it.price)||0)*it.quantity).toFixed(2)} USD</div></div>`).join('') + '</div>'
+
+      function makeId(){ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); return 'idem-' + Math.random().toString(36).slice(2) }
+
+      payBtn.addEventListener('click', async (e)=>{
+        e.preventDefault()
+        payBtn.disabled = true
+        result.style.display = 'none'
+
+        const address = document.getElementById('address').value.trim()
+        const card = document.getElementById('card').value.trim()
+        const cvv = document.getElementById('cvv').value.trim()
+        const comment = document.getElementById('comment').value.trim()
+
+        if(!address || !card || !cvv){
+          result.style.display = 'block'
+          result.textContent = 'Заполните адрес и данные карты.'
+          payBtn.disabled = false
+          return
+        }
+
+        const payload = {
+          user_id: 1,
+          items: items.map(i=>({ product_id: i.product_id, quantity: i.quantity })),
+          amount: Number(amount.toFixed(2)),
+          currency: checkout.currency || 'USD',
+          payment_method: 'card',
+          payment_details: { card: card.replace(/\s+/g,'').slice(-4), cvv: '***' },
+          shipping_address: address,
+          comment: comment,
+          idempotency_key: makeId()
+        }
+
+        try{
+          const host = window.location.hostname
+          const ordersUrl = (host && host !== 'localhost') ? '/api/orders/checkout' : 'http://localhost:8004/api/orders/checkout'
+          const resp = await fetch(ordersUrl, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+          const json = await resp.json().catch(()=>null)
+          if(resp.ok){
+            // normalize response shape: accept {order_id:...} or {order_id:..., id:...}
+            const last = json || {}
+            if(last.order_id && !last.id) last.id = last.order_id
+            // store last order and clear cart
+            sessionStorage.setItem('vf_last_order', JSON.stringify(last))
+            localStorage.removeItem('cart')
+            // redirect to confirmation
+            location.href = '/order-confirmation'
+          } else {
+            result.style.display = 'block'
+            result.textContent = 'Ошибка: ' + resp.status + '\n' + JSON.stringify(json, null, 2)
+          }
+        }catch(err){
+          result.style.display = 'block'
+          result.textContent = 'Network error: ' + String(err)
+        }finally{
+          payBtn.disabled = false
+        }
+      })
+    })()
+  </script>
+
+{% endblock %}

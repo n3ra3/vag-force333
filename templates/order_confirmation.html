@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Спасибо за заказ — VAG FORCE{% endblock %}
+
+{% block content %}
+  <section class="card" style="max-width:760px;margin:22px auto;text-align:center">
+    <h2>Спасибо! Ваш заказ оформлен</h2>
+    <p class="muted" id="sub">Скоро мы начнём его обрабатывать.</p>
+
+    <div id="orderBox" style="text-align:left;margin-top:12px"></div>
+
+    <p style="margin-top:14px"><a class="btn" href="/shop">Продолжить покупки</a></p>
+  </section>
+
+  <script>
+    (function(){
+      const data = sessionStorage.getItem('vf_last_order')
+      const box = document.getElementById('orderBox')
+      if(!data){ box.innerHTML = '<div class="muted">Информация о заказе не найдена.</div>'; return }
+  const o = JSON.parse(data)
+      const lines = []
+  // support both { order_id: ... } and { id: ... } shapes (orders-service vs older clients)
+  const orderNumber = o.order_id || o.id || '—'
+  lines.push('<div style="font-weight:600;margin-bottom:8px">Номер заказа: ' + orderNumber + '</div>')
+      lines.push('<div class="muted">Сумма: ' + (o.amount ? o.amount + ' ' + (o.currency||'USD') : '—') + '</div>')
+      if(o.shipping_address) lines.push('<div>Адрес: ' + o.shipping_address + '</div>')
+      if(o.items && o.items.length){
+        lines.push('<div style="margin-top:8px"><strong>Товары:</strong></div>')
+        lines.push('<ul>' + o.items.map(it=>'<li>id:' + it.product_id + ' × ' + it.quantity + '</li>').join('') + '</ul>')
+      }
+      box.innerHTML = lines.join('\n')
+    })()
+  </script>
+
+{% endblock %}

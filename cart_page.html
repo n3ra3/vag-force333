@@ -1,0 +1,30 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Корзина — VAG FORCE</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body { font-family: Inter, system-ui, Arial; padding:24px }
+    .card { background:white; padding:18px; border-radius:8px; max-width:720px; margin:16px auto }
+    button { padding:10px 14px; border-radius:6px; background:#2563eb; color:white; border:0 }
+    pre { background:#f6f8fa; padding:12px; border-radius:6px }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Корзина</h2>
+    <p>Кликните «Checkout demo» чтобы отправить тестовый запрос в сервис заказов.</p>
+
+    <div>
+      <button id="checkoutBtn">Checkout demo (user_id=1)</button>
+    </div>
+
+    <h3>Результат</h3>
+    <pre id="result">—</pre>
+  </div>
+
+  <script src="/static/js/cart.js"></script>
+</body>
+</html>

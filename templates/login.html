@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ru" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Вход — VAG FORCE</title>
+  <style>
+    :root{
+      --bg-gradient: linear-gradient(135deg,#f8fafc,#e6eef8);
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-2: #7c3aed;
+      --success: #10b981;
+      --danger: #ef4444;
+      --glass: rgba(255,255,255,0.6);
+      --shadow: 0 6px 24px rgba(16,24,40,0.08);
+      --radius: 14px;
+    }
+    html[data-theme="dark"]{
+      --bg-gradient: linear-gradient(135deg,#0b1220,#061226);
+      --card-bg: rgba(8,10,15,0.6);
+      --text: #e6eef8;
+      --muted: #9ca3af;
+      --accent: #60a5fa;
+      --accent-2: #a78bfa;
+      --success: #34d399;
+      --danger: #fb7185;
+      --glass: rgba(255,255,255,0.04);
+      --shadow: 0 10px 30px rgba(2,6,23,0.6);
+    }
+
+    *{box-sizing:border-box;font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+
+    body{
+      min-height:100vh;
+      margin:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:var(--bg-gradient);
+      color:var(--text);
+      padding:24px;
+    }
+
+    .card{
+      width:100%;
+      max-width:420px;
+      background:var(--glass);
+      border-radius:var(--radius);
+      padding:30px;
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(6px) saturate(120%);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    html[data-theme="dark"] .card{ border-color: rgba(255,255,255,0.03); }
+
+    h1{ margin:0 0 6px 0; font-size:22px; }
+    p.lead{ margin:0 0 16px 0; color:var(--muted); }
+
+    label{ font-size:13px; color:var(--muted); }
+    input[type="email"], input[type="password"]{
+      width:100%;
+      padding:12px 14px;
+      border-radius:10px;
+      border:1px solid rgba(16,24,40,0.06);
+      background: rgba(255,255,255,0.9);
+      color:var(--text);
+      outline:none;
+      margin-top:8px;
+      transition: box-shadow .12s ease, transform .08s ease;
+    }
+    html[data-theme="dark"] input[type="email"], html[data-theme="dark"] input[type="password"]{
+      background: rgba(255,255,255,0.02);
+      border:1px solid rgba(255,255,255,0.04);
+    }
+    input:focus{ box-shadow: 0 8px 20px rgba(37,99,235,0.12); transform: translateY(-1px); }
+
+    .actions{ margin-top:18px; display:flex; gap:12px; align-items:center; }
+    .cta{ background: linear-gradient(90deg,var(--accent),var(--accent-2)); color:white; border:none; padding:10px 16px; border-radius:10px; cursor:pointer; font-weight:600; }
+    .cta[disabled]{ opacity:0.6; cursor:not-allowed; }
+
+    .linkish{ background:transparent; border:none; color:var(--muted); cursor:pointer; font-size:14px; text-decoration:underline; }
+
+    .error{ margin-top:12px; padding:10px 12px; background: rgba(239,68,68,0.08); color:var(--danger); border-radius:8px; font-size:14px; display:none; }
+    html[data-theme="dark"] .error{ background: rgba(251,113,133,0.06); color:var(--danger); }
+
+    .small{ font-size:13px; color:var(--muted); margin-top:12px; text-align:center; }
+    @media (max-width:480px){
+      .card{ padding:20px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card" role="main" aria-labelledby="login-title">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div>
+        <h1 id="login-title">Вход в VAG FORCE</h1>
+        <p class="lead">Введите ваш email и пароль, чтобы войти.</p>
+      </div>
+      <div style="font-weight:700;color:var(--accent);background:linear-gradient(90deg,var(--accent),var(--accent-2));width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff">VF</div>
+    </div>
+
+    <form id="loginForm" novalidate>
+      <div style="display:flex;flex-direction:column;">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required placeholder="you@example.com" autocomplete="email" />
+      </div>
+
+      <div style="display:flex;flex-direction:column;margin-top:12px;">
+        <label for="password">Пароль</label>
+        <input id="password" name="password" type="password" required placeholder="Ваш пароль" autocomplete="current-password" />
+      </div>
+
+      <div class="actions">
+        <button class="cta" id="loginBtn" type="submit">Войти</button>
+        <button type="button" class="linkish" onclick="location.href='/register'">Регистрация</button>
+      </div>
+
+      <div id="error" class="error" role="alert" aria-live="assertive"></div>
+      <div class="small">После входа вы будете перенаправлены в панель управления.</div>
+    </form>
+  </main>
+
+  <script>
+    // Theme auto handling (reuse same idea as register)
+    const html = document.documentElement;
+    const stored = localStorage.getItem('vf-theme');
+    function applyTheme(t){
+      if(t === 'light' || t === 'dark'){
+        html.setAttribute('data-theme', t);
+      } else {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        html.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+      }
+    }
+    applyTheme(stored || 'auto');
+
+    const form = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const errBox = document.getElementById('error');
+
+    function showError(msg){
+      errBox.style.display = 'block';
+      errBox.textContent = msg;
+    }
+    function hideError(){
+      errBox.style.display = 'none';
+      errBox.textContent = '';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      const email = form.email.value.trim();
+      const password = form.password.value;
+
+      if(!email || !password){
+        showError('Заполните все поля.');
+        return;
+      }
+      const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if(!emailRe.test(email)){
+        showError('Введите корректный email.');
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Входим...';
+
+      try{
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await (res.headers.get('content-type')||'').includes('application/json') ? await res.json() : null;
+
+        if(!res.ok){
+          const detail = data && (data.detail || data.message) ? (data.detail || data.message) : 'Ошибка входа';
+          showError(detail);
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Войти';
+          return;
+        }
+
+        // expected { access_token, token_type }
+        const token = data && data.access_token ? data.access_token : null;
+        if(!token){
+          showError('Сервер вернул неправильный ответ.');
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Войти';
+          return;
+        }
+
+  // Save token and redirect to profile
+  localStorage.setItem('vf_token', token);
+  try{ if(window.vfUI && typeof window.vfUI.updateAuthUI === 'function') window.vfUI.updateAuthUI() }catch(e){}
+  location.href = '/profile';
+      } catch(err){
+        console.error(err);
+        showError('Сервер не отвечает. Попробуйте позже.');
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Войти';
+      }
+    });
+
+    // If already logged in, optionally redirect
+    (function(){
+      const t = localStorage.getItem('vf_token');
+      if(t){
+        // optionally auto-redirect to profile
+        // location.href = '/profile';
+      }
+    })();
+  </script>
+</body>
+</html>
