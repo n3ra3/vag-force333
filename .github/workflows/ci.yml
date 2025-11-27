@@ -36,16 +36,23 @@ jobs:
       - name: Wait for Postgres and services
         run: |
           sudo apt-get update -y
-          # install netcat-openbsd (provides `nc`) and curl
+          # install tools
           sudo apt-get install -y netcat-openbsd curl
+
+          # Wait for Postgres to accept connections (use pg_isready inside the container)
           for i in {1..60}; do
-            nc -z localhost 5432 && echo "Postgres is up" && break
+            docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && echo "Postgres is up" && break
             echo "Waiting for Postgres... ($i)"; sleep 2
           done
-          # wait for orders service
-          for i in {1..60}; do
-            if curl -sSf http://localhost:8004/ >/dev/null 2>&1; then echo "orders-service up" && break; fi
-            echo "Waiting for orders-service... ($i)"; sleep 2
+
+          # Wait for HTTP services used by tests to be available (orders, inventory, payments)
+          for svc in 8004 8008 8005; do
+            for i in {1..60}; do
+              if curl -sSf "http://localhost:${svc}/health" >/dev/null 2>&1; then echo "port ${svc} healthy" && break; fi
+              # fallback: if /health not present try root
+              if curl -sSf "http://localhost:${svc}/" >/dev/null 2>&1; then echo "port ${svc} responding at /" && break; fi
+              echo "Waiting for service on port ${svc}... ($i)"; sleep 2
+            done
           done
 
       - name: Run DB seeder
