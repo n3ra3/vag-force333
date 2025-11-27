@@ -105,20 +105,45 @@ def seed_products(conn):
     except Exception:
         pass
 
+    # ensure stock column exists and set a sensible default and NOT NULL constraint
+    try:
+        # Add column if missing (nullable)
+        cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER")
+        # Set NULL stocks to a reasonable demo value (10)
+        cur.execute("UPDATE products SET stock = 10 WHERE stock IS NULL")
+        # Set default for future inserts
+        cur.execute("ALTER TABLE products ALTER COLUMN stock SET DEFAULT 0")
+        # Make column NOT NULL now that values exist
+        cur.execute("ALTER TABLE products ALTER COLUMN stock SET NOT NULL")
+    except Exception as e:
+        # Surface errors in CI logs to help debugging
+        print("Failed to ensure products.stock column exists:", e)
+        # Re-raise so the seeder step fails loudly in CI instead of silently continuing
+        raise
+
     # Always use the fixed product list for deterministic demo data
     NUM = len(FIXED_PRODUCTS)
     for idx, item in enumerate(FIXED_PRODUCTS, start=1):
         cur.execute(
             """
-            INSERT INTO products (id, name, price, description) VALUES (%s, %s, %s, %s)
-            ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price = EXCLUDED.price, description = EXCLUDED.description
+            INSERT INTO products (id, name, price, description, stock) VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price = EXCLUDED.price, description = EXCLUDED.description, stock = EXCLUDED.stock
             """,
-            (idx, item['name'], item['price'], item['description']),
+            (idx, item['name'], item['price'], item['description'], item.get('stock', 10)),
         )
 
     # remove any leftover demo products with id > NUM (keep DB tidy)
     cur.execute("DELETE FROM products WHERE id > %s", (NUM,))
     print(f"Seeded {NUM} fixed demo products")
+    # Dump products table for debugging (id, name, stock)
+    try:
+        cur.execute("SELECT id, name, stock FROM products ORDER BY id")
+        rows = cur.fetchall()
+        print("DB products after seeding:")
+        for r in rows:
+            print(r)
+    except Exception as e:
+        print("Could not query products after seeding:", e)
     cur.close()
 
 
