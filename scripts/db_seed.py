@@ -65,6 +65,25 @@ def ensure_tables(conn):
         );
         """
     )
+    # Ensure orders table exists with expected columns used by orders-service
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS orders (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER,
+            status VARCHAR(50),
+            amount NUMERIC,
+            currency VARCHAR(10),
+            idempotency_key VARCHAR(255),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+        );
+        """
+    )
+    # Create unique index on idempotency_key to support idempotent inserts
+    try:
+        cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency_key ON orders (idempotency_key);")
+    except Exception:
+        pass
     cur.close()
 
 
