@@ -59,6 +59,18 @@ jobs:
         run: |
           docker compose run --rm db-seed
 
+      - name: Verify DB seed and services
+        run: |
+          echo "---- products-service (HTTP) ----"
+          curl -sS http://localhost:8002/api/products || (echo "products service not responding" && exit 1)
+
+          echo "---- inventory-service item 1 ----"
+          curl -sS http://localhost:8008/api/inventory/items/1 || (echo "inventory service not responding or item missing" && exit 1)
+
+          echo "---- DB products table ----"
+          # run SQL inside the postgres container to list products
+          docker compose exec -T db psql -U postgres -d vag_force_db -c "SELECT id, name, stock FROM products ORDER BY id;" || (echo "psql query failed" && exit 1)
+
       - name: Install test requirements
         run: |
           python -m pip install --upgrade pip
