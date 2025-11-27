@@ -61,6 +61,22 @@ jobs:
         run: |
           python -m pytest -q
 
+      - name: Collect service logs
+        if: always()
+        run: |
+          mkdir -p ci-logs
+          docker compose logs orders-service > ci-logs/orders-service.log || true
+          docker compose logs db > ci-logs/db.log || true
+          docker compose logs inventory-service > ci-logs/inventory-service.log || true
+          docker compose logs payments-service > ci-logs/payments-service.log || true
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: ci-logs
+
       - name: Tear down compose
         if: always()
         run: |
